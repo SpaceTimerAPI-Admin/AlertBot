@@ -4,6 +4,7 @@
   "main": "bot.js",
   "type": "module",
   "scripts": {
+    "build": "npm install && npx playwright install --with-deps",
     "start": "node bot.js"
   },
   "dependencies": {
