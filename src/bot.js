@@ -1,23 +1,21 @@
 import pkg from 'discord.js';
-const { Client, GatewayIntentBits, Collection } = pkg;
-import { fileURLToPath } from 'url';
-import path from 'path';
-import fs from 'fs';
+const { Client, Collection, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = pkg;
 import dotenv from 'dotenv';
 dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.commands = new Collection();
 
+import { fileURLToPath } from 'url';
+import path from 'path';
+import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const commandsPath = path.join(__dirname, 'commands');
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const filePath = path.join(commandsPath, file);
-  const { data, execute } = await import(`file://${filePath}`);
+  const { data, execute } = await import(`file://${path.join(commandsPath, file)}`);
   client.commands.set(data.name, { data, execute });
 }
 
@@ -30,15 +28,11 @@ client.on('interactionCreate', async interaction => {
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
   try {
-    await command.execute(interaction);
+    await command.execute(interaction, client);
   } catch (error) {
     console.error(error);
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: 'There was an error executing that command.', ephemeral: true });
-    } else {
-      await interaction.reply({ content: 'There was an error executing that command.', ephemeral: true });
-    }
+    await interaction.reply({ content: 'There was an error executing that command.', ephemeral: true });
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_BOT_TOKEN);
