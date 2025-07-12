@@ -1,16 +1,15 @@
-# Walt Disney World Dining Alert Bot (Render Ready - Final Version)
+# Walt Disney World Dining Alert Discord Bot
 
-This bot tracks real Disney dining reservation availability and alerts users via Discord DM. Hosted on Render.
+This bot monitors dining reservation availability at Walt Disney World and sends alerts via Discord.
 
 ## Features
-- Real Disney data (via authenticated session cookies)
-- Persistent alert storage
-- Every 5-minute availability checks
-- Auto-removal of expired alerts
-- Clean dropdown setup flow
+- Secure login to Disney via Playwright
+- Real-time reservation checks
+- Slash commands to track dining alerts
+- Private DM alerts with booking links
 
 ## Setup
-1. Fill in `.env` with your credentials
+1. Fill in the `.env` file with your Disney and Discord credentials.
 2. Run `npm install`
-3. Start the bot with `node bot.js`
+3. Start the bot: `node bot.js`
 
