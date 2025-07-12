@@ -5,7 +5,7 @@ export async function checkAvailability(restaurantId, date, partySize) {
   const cookies = JSON.parse(fs.readFileSync('./session/cookies.json'));
   const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-  const url = \`https://disneyworld.disney.go.com/dine-res/api/availability/\${partySize}/\${date}?entityId=\${restaurantId}\`;
+  const url = `https://disneyworld.disney.go.com/dine-res/api/availability/${partySize}/${date}?entityId=${restaurantId}`;
 
   const res = await fetch(url, {
     method: 'GET',
