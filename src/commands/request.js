@@ -2,9 +2,8 @@ import { SlashCommandBuilder } from 'discord.js';
 
 export const data = new SlashCommandBuilder()
   .setName('request')
-  .setDescription('Set a Disney dining alert');
+  .setDescription('Create a new dining availability watch');
 
 export async function execute(interaction) {
-  // Placeholder: implement interaction logic here
-  await interaction.reply({ content: 'Request feature coming soon!', ephemeral: true });
+  // Handled by bot.js modal
 }

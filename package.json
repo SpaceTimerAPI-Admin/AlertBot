@@ -1,6 +1,7 @@
 {
   "name": "wdw-dining-alert-bot",
   "version": "1.0.0",
+  "type": "module",
   "main": "src/bot.js",
   "scripts": {
     "deploy-commands": "node src/deploy-commands.js",
@@ -9,6 +10,6 @@
   "dependencies": {
     "discord.js": "^14.0.0",
     "dotenv": "^16.0.0",
-    "playwright": "^1.34.0"
+    "playwright": "^1.35.0"
   }
 }
