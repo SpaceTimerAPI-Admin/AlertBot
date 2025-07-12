@@ -1,10 +1,11 @@
 {
-  "name": "wdw-dining-alert-bot-final",
-  "version": "2.0.1",
-  "type": "module",
+  "name": "wdw-dining-alert-bot",
+  "version": "1.0.0",
   "main": "src/bot.js",
+  "type": "module",
   "scripts": {
-    "start": "node src/bot.js"
+    "start": "node src/bot.js",
+    "deploy-commands": "node src/deploy-commands.js"
   },
   "dependencies": {
     "discord.js": "^14.13.0",
