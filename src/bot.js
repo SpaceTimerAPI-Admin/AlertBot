@@ -11,9 +11,9 @@ const {
   TextInputStyle,
   InteractionResponseFlags
 } = pkg;
-
-import { loginToDisney } from './disneyAuth.js';
-import { watchAvailability } from './watcher.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -21,11 +21,13 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
 });
 
+// derive __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// load commands
 client.commands = new Collection();
-// load each command into client.commands
-import fs from 'fs';
-import path from 'path';
-const commandsPath = path.resolve(process.cwd(), 'src', 'commands');
+const commandsPath = path.join(__dirname, 'commands');
 for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))) {
   const { data, execute } = await import(path.join(commandsPath, file));
   client.commands.set(data.name, { data, execute });
@@ -43,10 +45,13 @@ client.on('interactionCreate', async interaction => {
       await cmd.execute(interaction);
     } catch (err) {
       console.error(err);
-      await interaction.reply({ content: '❌ There was an error while executing that command.', flags: InteractionResponseFlags.Ephemeral });
+      await interaction.reply({
+        content: '❌ There was an error executing that command.',
+        flags: InteractionResponseFlags.Ephemeral
+      });
     }
   }
-  // handle select menus & modals here...
+  // your select‐menu & modal handlers remain here…
 });
 
 client.login(process.env.DISCORD_TOKEN);
