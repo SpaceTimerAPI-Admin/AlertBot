@@ -36,7 +36,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferReply({ ephemeral: true });
 
     await interaction.editReply({
-      content: 'Hi! Let’s get started with your Disney dining alert.
+      content: 'Hi! Lets get started with your Disney dining alert.
 What restaurant are you looking for? (e.g., Ohana)'
     });
 
