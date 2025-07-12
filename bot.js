@@ -1,83 +1,89 @@
-import { Client, GatewayIntentBits, REST, Routes, Partials, InteractionType, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+// bot.js
+import { Client, GatewayIntentBits, REST, Routes, Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, SlashCommandBuilder, InteractionType } from 'discord.js';
 import dotenv from 'dotenv';
-import { handleAvailabilityCheck } from './scraper.js';
-
 dotenv.config();
 
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
-    partials: [Partials.Channel],
-});
+const token = process.env.DISCORD_TOKEN;
+const clientId = process.env.DISCORD_CLIENT_ID;
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const commands = [
-    {
-        name: 'request',
-        description: 'Set an alert for a Disney dining reservation',
-    },
-];
+  new SlashCommandBuilder()
+    .setName('request')
+    .setDescription('Request a Disney Dining alert')
+].map(command => command.toJSON());
 
-const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+const rest = new REST({ version: '10' }).setToken(token);
 
 (async () => {
-    try {
-        console.log('Registering slash commands...');
-        await rest.put(
-            Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-            { body: commands }
-        );
-        console.log('✅ Slash commands registered.');
-    } catch (error) {
-        console.error('Failed to register commands:', error);
-    }
+  try {
+    console.log('Registering slash commands...');
+    await rest.put(
+      Routes.applicationCommands(clientId),
+      { body: commands }
+    );
+    console.log('Slash commands registered successfully.');
+  } catch (error) {
+    console.error('Error registering slash commands:', error);
+  }
 })();
 
-client.once('ready', () => {
-    console.log(`🤖 Bot ready as ${client.user.tag}`);
+client.once(Events.ClientReady, () => {
+  console.log(`🤖 Bot ready as ${client.user.tag}`);
 });
 
-client.on('interactionCreate', async (interaction) => {
-    if (interaction.isChatInputCommand() && interaction.commandName === 'request') {
-        const modal = new ModalBuilder()
-            .setCustomId('diningRequest')
-            .setTitle('Set Your Dining Alert')
-            .addComponents(
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('restaurant')
-                        .setLabel('Restaurant Name')
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('date')
-                        .setLabel('Date (MM/DD/YYYY)')
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('time')
-                        .setLabel('Preferred Time (e.g., 6:30 PM)')
-                        .setStyle(TextInputStyle.Short)
-                        .setRequired(true)
-                )
-            );
-        await interaction.showModal(modal);
-    }
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+  if (interaction.commandName === 'request') {
+    const modal = new ModalBuilder()
+      .setCustomId('alertRequest')
+      .setTitle('Set Dining Alert');
 
-    if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'diningRequest') {
-        const restaurant = interaction.fields.getTextInputValue('restaurant');
-        const date = interaction.fields.getTextInputValue('date');
-        const time = interaction.fields.getTextInputValue('time');
+    const restaurantInput = new TextInputBuilder()
+      .setCustomId('restaurantName')
+      .setLabel('Restaurant Name')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
 
-        await interaction.reply({
-            content: `✅ You're set! We'll alert you when **${restaurant}** has availability on **${date}** around **${time}**.`,
-            ephemeral: true,
-        });
+    const dateInput = new TextInputBuilder()
+      .setCustomId('reservationDate')
+      .setLabel('Reservation Date (YYYY-MM-DD)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g., 2025-07-15')
+      .setRequired(true);
 
-        handleAvailabilityCheck(restaurant, date, time, interaction.user);
-    }
+    const mealInput = new TextInputBuilder()
+      .setCustomId('mealPeriod')
+      .setLabel('Meal Period (Breakfast, Lunch, or Dinner)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Breakfast, Lunch, or Dinner')
+      .setRequired(true);
+
+    const row1 = new ActionRowBuilder().addComponents(restaurantInput);
+    const row2 = new ActionRowBuilder().addComponents(dateInput);
+    const row3 = new ActionRowBuilder().addComponents(mealInput);
+
+    modal.addComponents(row1, row2, row3);
+
+    await interaction.showModal(modal);
+  }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.on(Events.InteractionCreate, async interaction => {
+  if (interaction.type !== InteractionType.ModalSubmit) return;
+  if (interaction.customId === 'alertRequest') {
+    const restaurant = interaction.fields.getTextInputValue('restaurantName');
+    const date = interaction.fields.getTextInputValue('reservationDate');
+    const meal = interaction.fields.getTextInputValue('mealPeriod');
+
+    // Future: add logic to validate, store, and begin availability checks here
+
+    await interaction.reply({
+      content: `✅ You're set! We'll alert you when **${restaurant}** has availability on **${date}** around **${meal}**.`,
+      ephemeral: true
+    });
+  }
+});
+
+client.login(token);
