@@ -1,4 +1,5 @@
-import { Client, Collection, GatewayIntentBits, ActionRowBuilder, SelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ModalActionRowComponentBuilder } from 'discord.js';
+import pkg from 'discord.js';
+const { Client, Collection, GatewayIntentBits, ActionRowBuilder, SelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = pkg;
 import dotenv from 'dotenv'; dotenv.config();
 import { loginDisney } from './disneyAuth.js';
 import { getLocations, getRestaurantsForLocation, checkAvailability } from './disneyAPI.js';
@@ -36,13 +37,13 @@ client.on('interactionCreate', async interaction => {
           .setPlaceholder('Select a restaurant')
           .addOptions(restaurants.map(r => ({ label: r.name, value: r.id })))
       );
-      return interaction.update({ content: `Location: **${interaction.values[0]}**\nNow choose a restaurant:`, components: [restRow] });
+      return interaction.update({ content: \`Location: **\${interaction.values[0]}**\nNow choose a restaurant:\`, components: [restRow] });
     }
 
     if (interaction.isSelectMenu() && interaction.customId === 'select_restaurant') {
       const modal = new ModalBuilder()
-        .setCustomId(`modal_${interaction.values[0]}`)
-        .setTitle(`Alert for ${interaction.values[0]}`)
+        .setCustomId(\`modal_\${interaction.values[0]}\`)
+        .setTitle(\`Alert for \${interaction.values[0]}\`)
         .addComponents(
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
@@ -72,7 +73,7 @@ client.on('interactionCreate', async interaction => {
       const meal = interaction.fields.getTextInputValue('meal').toLowerCase();
       const party = parseInt(interaction.fields.getTextInputValue('party'), 10);
       checkAvailability(restaurantId, date, meal, party, interaction.user);
-      return interaction.reply({ content: `✅ Alert set for **${restaurantId}** on **${date}** (${meal}, party of ${party}). I will DM you when availability opens!`, ephemeral: true });
+      return interaction.reply({ content: \`✅ Alert set for **\${restaurantId}** on **\${date}** (\${meal}, party of \${party}). I will DM you when availability opens!\`, ephemeral: true });
     }
   } catch (err) {
     console.error(err);
