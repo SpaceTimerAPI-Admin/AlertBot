@@ -1,15 +1,14 @@
 {
   "name": "wdw-dining-alert-bot-final",
   "version": "2.0.0",
-  "main": "bot.js",
   "type": "module",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "build": "npm install && npx playwright install --with-deps"
   },
   "dependencies": {
-    "discord.js": "^14.13.0",
+    "discord.js": "^14.11.0",
     "dotenv": "^16.3.1",
-    "playwright": "^1.44.0",
-    "node-fetch": "^3.3.2"
+    "playwright": "^1.43.1"
   }
 }
