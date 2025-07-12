@@ -1,15 +1,25 @@
-import fs from 'fs';
 import { chromium } from 'playwright';
+import dotenv from 'dotenv';
+import fs from 'fs';
+
+dotenv.config();
 
 export async function loginToDisney() {
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
   await page.goto('https://disneyworld.disney.go.com/login/');
-  await page.fill('#username', process.env.DISNEY_EMAIL);
-  await page.fill('#password', process.env.DISNEY_PASSWORD);
-  await page.click('[type="submit"]');
-  await page.waitForNavigation({ waitUntil: 'networkidle' });
-  const cookies = await page.context().cookies();
-  fs.writeFileSync('./session/cookies.json', JSON.stringify(cookies));
+
+  await page.fill('#loginPageUsername', process.env.DISNEY_EMAIL);
+  await page.fill('#loginPagePassword', process.env.DISNEY_PASSWORD);
+  await page.click('#loginPageSubmitButton');
+
+  await page.waitForTimeout(5000);
+
+  const cookies = await context.cookies();
+  fs.writeFileSync('./session/cookies.json', JSON.stringify(cookies, null, 2));
+
   await browser.close();
+  console.log('✅ Disney session cookies saved.');
 }

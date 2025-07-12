@@ -1,70 +1,73 @@
-import { Client, GatewayIntentBits, Events, Partials, REST, Routes, SlashCommandBuilder } from 'discord.js';
+
+import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { config } from 'dotenv';
 import fs from 'fs';
-import dotenv from 'dotenv';
-import { loginToDisney } from './disneyAuth.js';
-import { checkAvailability } from './scraper.js';
-import { scheduleJob } from 'node-schedule';
-import alerts from './alerts.js';
+import { runAlertChecks } from './alertChecker.js';
 
-dotenv.config();
+config();
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
-  partials: [Partials.Channel]
-});
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const GUILD_ID = process.env.DISCORD_GUILD_ID;
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+const alertsPath = './data/alerts.json';
+if (!fs.existsSync('./data')) fs.mkdirSync('./data');
+if (!fs.existsSync(alertsPath)) fs.writeFileSync(alertsPath, '[]');
 
 const commands = [
   new SlashCommandBuilder()
     .setName('request')
-    .setDescription('Set a dining alert')
-    .addStringOption(option =>
-      option.setName('restaurant')
-        .setDescription('Restaurant name')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('date')
-        .setDescription('Date (YYYY-MM-DD)')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('time')
-        .setDescription('Preferred time (e.g., 6:00 PM)')
-        .setRequired(true))
-    .addIntegerOption(option =>
-      option.setName('party')
-        .setDescription('Party size')
-        .setRequired(true))
-].map(command => command.toJSON());
+    .setDescription('Set up a Disney dining alert')
+    .addStringOption(opt => opt.setName('restaurant').setDescription('Restaurant name').setRequired(true))
+    .addStringOption(opt => opt.setName('date').setDescription('Date (YYYY-MM-DD)').setRequired(true))
+    .addStringOption(opt => opt.setName('time').setDescription('Time (e.g. 6:00 PM)').setRequired(true))
+    .addIntegerOption(opt => opt.setName('party').setDescription('Party size').setRequired(true))
+].map(cmd => cmd.toJSON());
 
-const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-async function registerCommands() {
+(async () => {
   try {
-    await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
-    console.log('✅ Slash command registered.');
-  } catch (error) {
-    console.error(error);
+    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+    console.log('✅ Slash commands registered');
+  } catch (err) {
+    console.error('❌ Failed to register commands:', err);
   }
-}
+})();
 
-client.once(Events.ClientReady, async () => {
-  console.log(`🤖 Bot ready as ${client.user.tag}`);
-  await registerCommands();
-  await loginToDisney();
-  scheduleJob('*/5 * * * *', () => alerts.run(client));
+client.once(Events.ClientReady, c => {
+  console.log(`🤖 Bot ready as ${c.user.tag}`);
+
+  setInterval(() => {
+    runAlertChecks(client);
+  }, 5 * 60 * 1000); // every 5 min
 });
 
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-  const { commandName, options, user } = interaction;
-  if (commandName === 'request') {
-    const restaurant = options.getString('restaurant');
-    const date = options.getString('date');
-    const time = options.getString('time');
-    const party = options.getInteger('party');
-    await alerts.add(user.id, restaurant, date, time, party);
-    await interaction.reply({ content: '✅ Alert saved. You will be notified if a reservation opens!', ephemeral: true });
+  if (interaction.commandName === 'request') {
+    const restaurant = interaction.options.getString('restaurant');
+    const date = interaction.options.getString('date');
+    const time = interaction.options.getString('time');
+    const party = interaction.options.getInteger('party');
+
+    const newAlert = {
+      userId: interaction.user.id,
+      restaurant,
+      date,
+      time,
+      partySize: party
+    };
+
+    const alerts = JSON.parse(fs.readFileSync(alertsPath, 'utf8'));
+    alerts.push(newAlert);
+    fs.writeFileSync(alertsPath, JSON.stringify(alerts, null, 2));
+
+    await interaction.reply({ content: `✅ You're set! We'll alert you when ${restaurant} has availability on ${date} around ${time}.`, ephemeral: true });
   }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(TOKEN);
