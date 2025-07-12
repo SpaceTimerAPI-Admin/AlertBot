@@ -1,3 +1,9 @@
+// src/deploy-commands.js
+import pkg from 'discord.js';
+const { REST, Routes } = pkg;
+// ... rest of your deploy script ...
+
+
 import { REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { CLIENT_ID, GUILD_ID, DISCORD_TOKEN } from './config.js';
 
