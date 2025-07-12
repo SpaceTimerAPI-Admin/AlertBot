@@ -1,6 +1,5 @@
-// src/deploy-commands.js
 import pkg from 'discord.js';
-const { REST, Routes } = pkg;
+const { REST, Routes, SlashCommandBuilder } = pkg;
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
