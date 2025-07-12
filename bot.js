@@ -1,89 +1,82 @@
-// bot.js
-import { Client, GatewayIntentBits, REST, Routes, Events, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, SlashCommandBuilder, InteractionType } from 'discord.js';
+import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, InteractionType, ActionRowBuilder, StringSelectMenuBuilder, Events } from 'discord.js';
 import dotenv from 'dotenv';
-dotenv.config();
+import { getRestaurantsByLocation, watchForAvailability } from './scraper.js';
 
-const token = process.env.DISCORD_TOKEN;
-const clientId = process.env.DISCORD_CLIENT_ID;
+dotenv.config();
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-const commands = [
-  new SlashCommandBuilder()
-    .setName('request')
-    .setDescription('Request a Disney Dining alert')
-].map(command => command.toJSON());
+const locations = [
+  { label: "Magic Kingdom", value: "Magic Kingdom" },
+  { label: "EPCOT", value: "EPCOT" },
+  { label: "Hollywood Studios", value: "Hollywood Studios" },
+  { label: "Animal Kingdom", value: "Animal Kingdom" },
+  { label: "Disney Springs", value: "Disney Springs" },
+  { label: "Contemporary Resort", value: "Contemporary Resort" },
+  { label: "Grand Floridian", value: "Grand Floridian" },
+  { label: "Polynesian", value: "Polynesian" }
+];
 
-const rest = new REST({ version: '10' }).setToken(token);
+const meals = [
+  { label: "Breakfast", value: "breakfast" },
+  { label: "Lunch", value: "lunch" },
+  { label: "Dinner", value: "dinner" }
+];
 
-(async () => {
-  try {
-    console.log('Registering slash commands...');
-    await rest.put(
-      Routes.applicationCommands(clientId),
-      { body: commands }
-    );
-    console.log('Slash commands registered successfully.');
-  } catch (error) {
-    console.error('Error registering slash commands:', error);
-  }
-})();
-
-client.once(Events.ClientReady, () => {
+client.once(Events.ClientReady, async () => {
   console.log(`🤖 Bot ready as ${client.user.tag}`);
-});
 
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName === 'request') {
-    const modal = new ModalBuilder()
-      .setCustomId('alertRequest')
-      .setTitle('Set Dining Alert');
+  const commands = [
+    new SlashCommandBuilder()
+      .setName('request')
+      .setDescription('Set a dining alert')
+  ].map(command => command.toJSON());
 
-    const restaurantInput = new TextInputBuilder()
-      .setCustomId('restaurantName')
-      .setLabel('Restaurant Name')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const dateInput = new TextInputBuilder()
-      .setCustomId('reservationDate')
-      .setLabel('Reservation Date (YYYY-MM-DD)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('e.g., 2025-07-15')
-      .setRequired(true);
-
-    const mealInput = new TextInputBuilder()
-      .setCustomId('mealPeriod')
-      .setLabel('Meal Period (Breakfast, Lunch, or Dinner)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Breakfast, Lunch, or Dinner')
-      .setRequired(true);
-
-    const row1 = new ActionRowBuilder().addComponents(restaurantInput);
-    const row2 = new ActionRowBuilder().addComponents(dateInput);
-    const row3 = new ActionRowBuilder().addComponents(mealInput);
-
-    modal.addComponents(row1, row2, row3);
-
-    await interaction.showModal(modal);
+  const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+  try {
+    await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: commands });
+  } catch (error) {
+    console.error(error);
   }
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-  if (interaction.type !== InteractionType.ModalSubmit) return;
-  if (interaction.customId === 'alertRequest') {
-    const restaurant = interaction.fields.getTextInputValue('restaurantName');
-    const date = interaction.fields.getTextInputValue('reservationDate');
-    const meal = interaction.fields.getTextInputValue('mealPeriod');
+  if (!interaction.isChatInputCommand() || interaction.commandName !== 'request') return;
 
-    // Future: add logic to validate, store, and begin availability checks here
+  const locationMenu = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('select_location')
+      .setPlaceholder('Choose a Resort or Park')
+      .addOptions(locations)
+  );
 
-    await interaction.reply({
-      content: `✅ You're set! We'll alert you when **${restaurant}** has availability on **${date}** around **${meal}**.`,
-      ephemeral: true
-    });
+  await interaction.reply({ content: 'Select your Resort or Park:', components: [locationMenu], ephemeral: true });
+});
+
+client.on(Events.InteractionCreate, async interaction => {
+  if (!interaction.isStringSelectMenu()) return;
+
+  if (interaction.customId === 'select_location') {
+    const location = interaction.values[0];
+    const restaurants = await getRestaurantsByLocation(location);
+    const restaurantMenu = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('select_restaurant')
+        .setPlaceholder('Choose a Restaurant')
+        .addOptions(restaurants.map(r => ({ label: r.name, value: r.id })))
+    );
+    await interaction.update({ content: 'Now select a restaurant:', components: [restaurantMenu] });
+  } else if (interaction.customId === 'select_restaurant') {
+    const mealMenu = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('select_meal')
+        .setPlaceholder('Choose a Meal Period')
+        .addOptions(meals)
+    );
+    await interaction.update({ content: 'Choose a meal period:', components: [mealMenu] });
+  } else if (interaction.customId === 'select_meal') {
+    await interaction.update({ content: `✅ You're set! We'll alert you when availability opens.`, components: [] });
   }
 });
 
-client.login(token);
+client.login(process.env.DISCORD_TOKEN);
