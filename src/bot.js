@@ -5,7 +5,7 @@ const {
   Collection,
   GatewayIntentBits,
   ActionRowBuilder,
-  StringSelectMenuBuilder,
+  StringStringSelectMenuBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -47,7 +47,7 @@ client.on('interactionCreate', async interaction => {
       console.error(err);
       await interaction.reply({
         content: '❌ There was an error executing that command.',
-        flags: InteractionResponseFlags.Ephemeral
+        ephemeral: true
       });
     }
   }
