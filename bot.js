@@ -25,12 +25,19 @@ async function fetchRestaurantData() {
   const url = "https://disneyworld.disney.go.com/finder/api/v1/explorer-service/list-ancestor-entities/80007798?filters=entityType:restaurant,experience";
   const res = await fetch(url);
   const data = await res.json();
+
+  if (!Array.isArray(data)) {
+    console.error("❌ Disney API returned unexpected data:", data);
+    return;
+  }
+
   const categorized = {};
   for (const item of data) {
     const location = item?.ancestorNames?.[0] || "Other";
     if (!categorized[location]) categorized[location] = [];
     categorized[location].push({ name: item.name, id: item.id });
   }
+
   fs.writeFileSync('./data/restaurants.json', JSON.stringify(categorized, null, 2));
   restaurants = categorized;
 }
@@ -41,7 +48,7 @@ client.once('ready', async () => {
   await loginToDisney();
   loadAlerts();
   setInterval(runChecks, 5 * 60 * 1000);
-  setInterval(loginToDisney, 30 * 60 * 1000); // refresh login every 30 mins
+  setInterval(loginToDisney, 30 * 60 * 1000);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
