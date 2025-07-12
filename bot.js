@@ -22,7 +22,7 @@ function saveAlerts() {
 }
 
 async function fetchRestaurantData() {
-  const url = "https://disneyworld.disney.go.com/finder/api/v1/explorer-service/list-ancestor-entities/80007798?filters=entityType:restaurant,experience";
+  const url = "https://disneyworld.disney.go.com/finder/api/v1/explorer-service/list-ancestor-entities/80007798";
   const res = await fetch(url);
   const data = await res.json();
 
@@ -31,8 +31,9 @@ async function fetchRestaurantData() {
     return;
   }
 
+  const filtered = data.filter(item => item.entityType === 'restaurant' || item.entityType === 'experience');
   const categorized = {};
-  for (const item of data) {
+  for (const item of filtered) {
     const location = item?.ancestorNames?.[0] || "Other";
     if (!categorized[location]) categorized[location] = [];
     categorized[location].push({ name: item.name, id: item.id });
