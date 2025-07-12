@@ -1,85 +1,85 @@
-import pkg from 'discord.js';
-const { Client, Collection, GatewayIntentBits, ActionRowBuilder, SelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = pkg;
-import dotenv from 'dotenv'; dotenv.config();
-import { loginDisney } from './disneyAuth.js';
-import { getLocations, getRestaurantsForLocation, checkAvailability } from './disneyAPI.js';
+// src/bot.js
+import { Client, Collection, GatewayIntentBits, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, InteractionResponseFlags } from 'discord.js';
+import dotenv from 'dotenv';
+import { loginToDisney } from './disneyAuth.js';
+import { fetchRestaurantData } from './disneyRestaurants.js';
 
-const client = new Client({ intents: [ GatewayIntentBits.Guilds ] });
-client.commands = new Collection();
+dotenv.config();
 
-client.once('ready', async () => {
-  console.log(`🤖 Bot ready as ${client.user.tag}`);
-  await loginDisney();
-  await client.application.commands.set([{
-    name: 'request',
-    description: 'Create a Disney dining availability alert'
-  }], process.env.GUILD_ID);
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds]
 });
 
+client.commands = new Collection();
+
+// --- your slash command registration / deploy-commands.js remains unchanged ---
+
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+  await loginToDisney(); // make sure this handles cookie refresh internally
+});
+
+// Handle the initial /request command
 client.on('interactionCreate', async interaction => {
-  try {
-    if (interaction.isChatInputCommand() && interaction.commandName === 'request') {
-      const locations = await getLocations();
-      const locRow = new ActionRowBuilder().addComponents(
-        new SelectMenuBuilder()
-          .setCustomId('select_location')
-          .setPlaceholder('Select a park or resort')
-          .addOptions(locations.map(l => ({ label: l, value: l })))
-      );
-      return interaction.reply({ content: 'Choose your location:', components: [locRow], ephemeral: true });
-    }
+  if (interaction.isChatInputCommand() && interaction.commandName === 'request') {
+    // show a 4-field modal
+    const modal = new ModalBuilder()
+      .setCustomId('diningModal')
+      .setTitle('Set up your alert');
 
-    if (interaction.isSelectMenu() && interaction.customId === 'select_location') {
-      const restaurants = await getRestaurantsForLocation(interaction.values[0]);
-      const restRow = new ActionRowBuilder().addComponents(
-        new SelectMenuBuilder()
-          .setCustomId('select_restaurant')
-          .setPlaceholder('Select a restaurant')
-          .addOptions(restaurants.map(r => ({ label: r.name, value: r.id })))
-      );
-      return interaction.update({ content: \`Location: **\${interaction.values[0]}**\nNow choose a restaurant:\`, components: [restRow] });
-    }
+    // Resort/Park select
+    const locationMenu = new StringSelectMenuBuilder()
+      .setCustomId('locationSelect')
+      .setPlaceholder('Choose Resort or Park')
+      .addOptions([
+        // these should come dynamically; here's a placeholder
+        { label: 'Magic Kingdom', value: 'MK' },
+        { label: 'EPCOT',       value: 'EP' }
+      ]);
+    const locRow = new ActionRowBuilder().addComponents(locationMenu);
 
-    if (interaction.isSelectMenu() && interaction.customId === 'select_restaurant') {
-      const modal = new ModalBuilder()
-        .setCustomId(\`modal_\${interaction.values[0]}\`)
-        .setTitle(\`Alert for \${interaction.values[0]}\`)
-        .addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('date')
-              .setLabel('Date (YYYY-MM-DD)')
-              .setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('meal')
-              .setLabel('Meal period (breakfast|lunch|dinner)')
-              .setStyle(TextInputStyle.Short)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder()
-              .setCustomId('party')
-              .setLabel('Party size')
-              .setStyle(TextInputStyle.Short)
-          )
-        );
-      return interaction.showModal(modal);
-    }
+    // Restaurant menu (will be replaced after locationSelect)
+    const restMenu = new StringSelectMenuBuilder()
+      .setCustomId('restaurantSelect')
+      .setPlaceholder('First choose a location above');
+    const restRow = new ActionRowBuilder().addComponents(restMenu);
 
-    if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_')) {
-      const restaurantId = interaction.customId.replace('modal_', '');
-      const date = interaction.fields.getTextInputValue('date');
-      const meal = interaction.fields.getTextInputValue('meal').toLowerCase();
-      const party = parseInt(interaction.fields.getTextInputValue('party'), 10);
-      checkAvailability(restaurantId, date, meal, party, interaction.user);
-      return interaction.reply({ content: \`✅ Alert set for **\${restaurantId}** on **\${date}** (\${meal}, party of \${party}). I will DM you when availability opens!\`, ephemeral: true });
-    }
-  } catch (err) {
-    console.error(err);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '❌ Oops, something went wrong. Please try again.', ephemeral: true });
-    }
+    // Date picker
+    const dateInput = new TextInputBuilder()
+      .setCustomId('dateInput')
+      .setLabel('Date (YYYY-MM-DD)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('e.g. 2025-08-01');
+    const dateRow = new ActionRowBuilder().addComponents(dateInput);
+
+    // Meal period select
+    const mealMenu = new StringSelectMenuBuilder()
+      .setCustomId('mealSelect')
+      .setPlaceholder('Breakfast / Lunch / Dinner')
+      .addOptions([
+        { label: 'Breakfast', value: 'breakfast' },
+        { label: 'Lunch',     value: 'lunch'     },
+        { label: 'Dinner',    value: 'dinner'    }
+      ]);
+    const mealRow = new ActionRowBuilder().addComponents(mealMenu);
+
+    modal.addComponents(locRow, restRow, dateRow, mealRow);
+    await interaction.showModal(modal);
+  }
+
+  // Handle the modal submit
+  if (interaction.isModalSubmit() && interaction.customId === 'diningModal') {
+    const [location, restaurant, date, meal] = [
+      interaction.fields.getTextInputValue('locationSelect'),
+      interaction.fields.getTextInputValue('restaurantSelect'),
+      interaction.fields.getTextInputValue('dateInput'),
+      interaction.fields.getTextInputValue('mealSelect')
+    ];
+    // store their choices and kick off your watcher...
+    await interaction.reply({
+      content: `✅ Alert set!\n• Location: **${location}**\n• Restaurant: **${restaurant}**\n• Date: **${date}**\n• Meal: **${meal}**`,
+      flags: InteractionResponseFlags.Ephemeral
+    });
   }
 });
 
