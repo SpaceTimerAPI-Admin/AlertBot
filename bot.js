@@ -1,1 +1,1 @@
-// Main bot logic with real-time dropdown + modal flow
+// Entry point for Discord bot
